@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Outil C (V3 cabinet) — SEP Marchand de biens : multi-opérations + alertes + exports</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111a2e; --muted:#93a4c7; --text:#eaf0ff;
+      --accent:#7aa2ff; --ok:#37d67a; --warn:#ffcc66; --danger:#ff6b6b;
+      --border:rgba(255,255,255,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(120deg,#070b14,#0b1220);color:var(--text)}
+    header{padding:18px 18px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,18,32,.85);backdrop-filter:blur(10px);z-index:10}
+    h1{margin:0;font-size:16px;font-weight:900;letter-spacing:.2px}
+    .sub{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.35}
+    .wrap{display:grid;grid-template-columns:470px 1fr;gap:14px;padding:14px;max-width:1600px;margin:0 auto}
+    .card{background:rgba(17,26,46,.78);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0;padding:14px 14px 0;font-size:13px;color:#cfe0ff}
+    .card .content{padding:14px}
+    label{display:block;font-size:12px;color:#cfe0ff;margin:10px 0 6px}
+    input,select,textarea{
+      width:100%;padding:10px 10px;border-radius:10px;border:1px solid var(--border);
+      background:rgba(255,255,255,.06);color:var(--text);outline:none
+    }
+    textarea{min-height:90px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{
+      border:1px solid var(--border);background:rgba(255,255,255,.08);color:var(--text);
+      padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;font-size:12px
+    }
+    button.primary{background:rgba(122,162,255,.22);border-color:rgba(122,162,255,.45)}
+    button.good{background:rgba(55,214,122,.16);border-color:rgba(55,214,122,.40)}
+    button.warn{background:rgba(255,204,102,.14);border-color:rgba(255,204,102,.40)}
+    button.danger{background:rgba(255,107,107,.14);border-color:rgba(255,107,107,.40)}
+    button:active{transform:translateY(1px)}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-bottom:1px solid var(--border)}
+    .tab{padding:8px 10px;border-radius:12px;font-size:12px;color:var(--muted);border:1px solid transparent}
+    .tab.active{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}
+    .pane{display:none;padding:12px}
+    .pane.active{display:block}
+    .small{font-size:11px;color:var(--muted);line-height:1.35}
+    .item{border:1px solid var(--border);border-radius:12px;padding:10px;background:rgba(255,255,255,.04);margin-top:10px}
+    .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .badge{font-size:11px;color:#cfe0ff;background:rgba(122,162,255,.16);border:1px solid rgba(122,162,255,.35);padding:4px 8px;border-radius:999px}
+    .muted{color:var(--muted)}
+    .hr{height:1px;background:var(--border);margin:12px 0}
+    .preview{
+      background:white;color:#111;border-radius:12px;border:1px solid rgba(0,0,0,.08);
+      padding:26px;min-height:650px
+    }
+    .preview h3{margin:0 0 10px}
+    .preview p,.preview li{line-height:1.45}
+    .preview .meta{font-size:12px;color:#333}
+    .preview .sec{margin-top:14px}
+    .preview .sec h4{margin:0 0 6px;font-size:14px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid rgba(0,0,0,.10);padding:8px;font-size:13px;vertical-align:top}
+    th{text-align:left;border-bottom:1px solid rgba(0,0,0,.20)}
+    .pill{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:6px 10px;border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.03);font-size:12px}
+    .pill.ok{border-color:rgba(55,214,122,.55);background:rgba(55,214,122,.12)}
+    .pill.warn{border-color:rgba(255,204,102,.65);background:rgba(255,204,102,.12)}
+    .pill.danger{border-color:rgba(255,107,107,.65);background:rgba(255,107,107,.12)}
+    @media (max-width: 1150px){.wrap{grid-template-columns:1fr}.preview{min-height:520px}}
+    @media print{
+      header,.card.left,.tabs,.btns,.small{display:none !important;}
+      body{background:white}
+      .wrap{padding:0;max-width:none}
+      .card{border:none;box-shadow:none}
+      .preview{border:none;border-radius:0;padding:0}
+    }
+  </style>
+
+  <!-- PDF export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+<header>
+  <h1>Outil C (V3 cabinet) — SEP Marchand de biens</h1>
+  <div class="sub">
+    Multi-opérations + journal des flux + alertes (seuils) + export CSV (répartition / checklist / flux) + PDF + JSON. 100% local.
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT -->
+  <section class="card left">
+    <h2>Saisie / paramétrage</h2>
+    <div class="content">
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-pane="p-sep">SEP</div>
+        <div class="tab" data-pane="p-ops">Opérations</div>
+        <div class="tab" data-pane="p-assoc">Associés</div>
+        <div class="tab" data-pane="p-gouv">Gérance</div>
+        <div class="tab" data-pane="p-clauses">Clauses</div>
+        <div class="tab" data-pane="p-check">Pièces</div>
+        <div class="tab" data-pane="p-flux">Flux</div>
+        <div class="tab" data-pane="p-alert">Alertes</div>
+      </div>
+
+      <!-- SEP -->
+      <div class="pane active" id="p-sep">
+        <label>Référence dossier</label>
+        <input id="d_ref" placeholder="Ex : MDB-2026-014" />
+
+        <label>Dénomination (facultatif)</label>
+        <input id="sep_name" placeholder="Ex : SEP OPÉRATION RUE X (facultatif)" />
+
+        <div class="row">
+          <div>
+            <label>Date d’effet</label>
+            <input id="sep_date_effet" type="date"/>
+          </div>
+          <div>
+            <label>Durée / terme</label>
+            <input id="sep_duree" placeholder="Ex : jusqu’à liquidation après cession du bien" />
+          </div>
+        </div>
+
+        <label>Siège de gestion (adresse)</label>
+        <input id="sep_siege" placeholder="Adresse de gestion / correspondance" />
+
+        <div class="row">
+          <div>
+            <label>Confidentialité</label>
+            <select id="sep_conf">
+              <option value="occulte">SEP occulte (non révélée aux tiers, sauf nécessité)</option>
+              <option value="ostensible">SEP ostensible (révélée aux tiers)</option>
+            </select>
+          </div>
+          <div>
+            <label>Fiscalité (paramétrage interne)</label>
+            <select id="eco_fisc">
+              <option value="transparence">Transparence fiscale (par défaut)</option>
+              <option value="is">Option IS (si retenue / sécurisée)</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Comptabilité – principes retenus</label>
+        <textarea id="eco_compta" placeholder="Ex : compte bancaire dédié, pièces, arrêté périodique, tableau de répartition..."></textarea>
+      </div>
+
+      <!-- OPERATIONS MULTI -->
+      <div class="pane" id="p-ops">
+        <div class="btns">
+          <button class="good" id="btn_add_op">+ Ajouter une opération</button>
+          <button class="warn" id="btn_clear_ops">Vider</button>
+        </div>
+        <div class="hr"></div>
+        <div class="small">Chaque opération peut correspondre à un bien distinct (adresse, calendrier, financement, notaire).</div>
+        <div id="ops_list"></div>
+      </div>
+
+      <!-- ASSOCIES -->
+      <div class="pane" id="p-assoc">
+        <div class="btns">
+          <button class="good" id="btn_add_assoc">+ Ajouter un associé</button>
+          <button class="warn" id="btn_clear_assoc">Vider</button>
+        </div>
+        <div class="hr"></div>
+        <div id="assoc_list"></div>
+      </div>
+
+      <!-- GOUVERNANCE -->
+      <div class="pane" id="p-gouv">
+        <div class="row">
+          <div>
+            <label>Gérant (nom / entité)</label>
+            <input id="gouv_gerant" placeholder="Ex : SAS X (représentée par…)" />
+          </div>
+          <div>
+            <label>Double validation banque / dépenses ?</label>
+            <select id="gouv_double">
+              <option value="non">Non</option>
+              <option value="oui">Oui</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Seuil double validation (si oui)</label>
+        <input id="gouv_seuil" placeholder="Ex : au-delà de 5 000 € / pour tout virement sortant" />
+
+        <label>Décisions collectives – majorité</label>
+        <input id="gouv_maj" placeholder="Ex : unanimité pour actes de disposition, majorité simple sinon" />
+
+        <label>Pouvoirs du gérant (résumé)</label>
+        <textarea id="gouv_pouvoirs" placeholder="Ex : actes d’administration ; actes de disposition soumis à unanimité…"></textarea>
+      </div>
+
+      <!-- CLAUSES (simple, import pack) -->
+      <div class="pane" id="p-clauses">
+        <div class="btns">
+          <button class="warn" id="btn_import_pack">Importer “pack clauses” (Outil A)</button>
+          <input id="file_pack" type="file" accept="application/json" style="display:none">
+          <button class="primary" id="btn_refresh">Mettre à jour l’aperçu</button>
+        </div>
+        <div class="hr"></div>
+        <div class="small">Dans cette V3, la sélection de clauses est automatisée via pack. Les clauses standard restent incluses.</div>
+        <div id="clause_status"></div>
+      </div>
+
+      <!-- PIECES -->
+      <div class="pane" id="p-check">
+        <div class="btns">
+          <button class="warn" id="btn_seed_check">Initialiser checklist</button>
+          <button class="primary" id="btn_refresh_check">Mettre à jour</button>
+          <button class="warn" id="btn_csv_check">Export CSV (pièces)</button>
+        </div>
+        <div class="hr"></div>
+        <div id="checklist_box"></div>
+      </div>
+
+      <!-- FLUX -->
+      <div class="pane" id="p-flux">
+        <div class="btns">
+          <button class="good" id="btn_add_flux">+ Ajouter un flux</button>
+          <button class="warn" id="btn_csv_flux">Export CSV (flux)</button>
+          <button class="warn" id="btn_clear_flux">Vider</button>
+        </div>
+        <div class="hr"></div>
+        <div class="small">Journal des flux (banque, notaire, CCA, travaux). Les alertes sont calculées à partir des seuils.</div>
+        <div id="flux_list"></div>
+      </div>
+
+      <!-- ALERTES -->
+      <div class="pane" id="p-alert">
+        <div class="item">
+          <div class="top">
+            <div>
+              <div><span class="badge">Paramétrage</span> <b>Seuils d’alerte (opérations atypiques)</b></div>
+              <div class="small muted">Déclenche des indicateurs dans l’aperçu + sur les flux.</div>
+            </div>
+          </div>
+          <div class="hr"></div>
+          <div class="row">
+            <div>
+              <label>Seuil montant (virement / dépense) (€)</label>
+              <input id="al_amount" type="number" step="0.01" placeholder="Ex : 10000" />
+            </div>
+            <div>
+              <label>Seuil “notes manquantes” (%)</label>
+              <input id="al_missing_notes" type="number" step="1" placeholder="Ex : 30" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Seuil “sans pièce justificative” (nb flux)</label>
+              <input id="al_no_doc" type="number" step="1" placeholder="Ex : 3" />
+            </div>
+            <div>
+              <label>Seuil “double validation” (€)</label>
+              <input id="al_double" type="number" step="0.01" placeholder="Ex : 5000" />
+            </div>
+          </div>
+
+          <label>Mots-clés à surveiller (séparés par virgule)</label>
+          <input id="al_keywords" placeholder="Ex : espèces, cash, remboursement, prêt, acompte, commission" />
+
+          <div class="btns">
+            <button class="primary" id="btn_refresh_alerts">Recalculer alertes</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="btns">
+        <button class="good" id="btn_print">Imprimer</button>
+        <button class="good" id="btn_pdf">Exporter PDF</button>
+        <button class="warn" id="btn_save">Exporter dossier JSON</button>
+        <button class="warn" id="btn_load">Importer dossier JSON</button>
+        <input id="file_load" type="file" accept="application/json" style="display:none">
+      </div>
+
+      <div class="small" style="margin-top:10px">
+        Export CSV : compatible Excel (séparateur “;”). Export JSON : réutilisable / preuve de collecte. Export PDF : livrable client.
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT -->
+  <section class="card">
+    <h2>Prévisualisation (contrat + annexes + alertes)</h2>
+    <div class="content">
+      <div id="preview" class="preview"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =========================
+   Etat
+   ========================= */
+function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
+function escapeHtml(s){
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function formatDate(d){
+  if(!d) return "";
+  try{ return new Date(d).toLocaleDateString("fr-FR"); }catch(e){ return d; }
+}
+function num(v){ const n = Number(v); return Number.isFinite(n)?n:0; }
+function csvEscape(s){
+  const v = (s ?? "").toString();
+  if(v.includes(";") || v.includes('"') || v.includes("\n")) return `"${v.replaceAll('"','""')}"`;
+  return v;
+}
+function download(filename, text, mime="text/plain"){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+let state = {
+  d_ref:"",
+  sep_name:"",
+  sep_date_effet:"",
+  sep_duree:"Jusqu’à liquidation après réalisation complète des opérations",
+  sep_siege:"",
+  sep_conf:"occulte",
+  eco_fisc:"transparence",
+  eco_compta:"",
+  gouv_gerant:"",
+  gouv_double:"non",
+  gouv_seuil:"",
+  gouv_maj:"Unanimité pour actes de disposition ; majorité simple pour décisions courantes",
+  gouv_pouvoirs:"",
+
+  ops: [],
+  associes: [],
+  clauses_enabled_ids: new Set(["c-objet","c-duree","c-conf","c-gerance","c-compta","c-resultat","c-labft","c-litiges"]),
+  checklist: { checks:{}, notes:{} },
+  flux: [],
+
+  alerts: {
+    amount: 10000,
+    missing_notes_pct: 30,
+    no_doc_count: 3,
+    double_validation_amount: 5000,
+    keywords: ["espèces","cash","remboursement","prêt","commission","acompte"]
+  }
+};
+
+/* =========================
+   Tabs
+   ========================= */
+document.getElementById("tabs").addEventListener("click",(e)=>{
+  const t = e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  document.querySelectorAll(".pane").forEach(p=>p.classList.remove("active"));
+  document.getElementById(t.dataset.pane).classList.add("active");
+});
+
+/* =========================
+   Bind inputs
+   ========================= */
+const bind = (id, getter, setter) => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", ()=>setter(el.value));
+  el.value = getter() ?? "";
+};
+
+bind("d_ref", ()=>state.d_ref, v=>state.d_ref=v);
+bind("sep_name", ()=>state.sep_name, v=>state.sep_name=v);
+bind("sep_date_effet", ()=>state.sep_date_effet, v=>state.sep_date_effet=v);
+bind("sep_duree", ()=>state.sep_duree, v=>state.sep_duree=v);
+bind("sep_siege", ()=>state.sep_siege, v=>state.sep_siege=v);
+bind("sep_conf", ()=>state.sep_conf, v=>state.sep_conf=v);
+bind("eco_fisc", ()=>state.eco_fisc, v=>state.eco_fisc=v);
+bind("eco_compta", ()=>state.eco_compta, v=>state.eco_compta=v);
+
+bind("gouv_gerant", ()=>state.gouv_gerant, v=>state.gouv_gerant=v);
+bind("gouv_double", ()=>state.gouv_double, v=>state.gouv_double=v);
+bind("gouv_seuil", ()=>state.gouv_seuil, v=>state.gouv_seuil=v);
+bind("gouv_maj", ()=>state.gouv_maj, v=>state.gouv_maj=v);
+bind("gouv_pouvoirs", ()=>state.gouv_pouvoirs, v=>state.gouv_pouvoirs=v);
+
+bind("al_amount", ()=>state.alerts.amount, v=>state.alerts.amount=num(v));
+bind("al_missing_notes", ()=>state.alerts.missing_notes_pct, v=>state.alerts.missing_notes_pct=num(v));
+bind("al_no_doc", ()=>state.alerts.no_doc_count, v=>state.alerts.no_doc_count=num(v));
+bind("al_double", ()=>state.alerts.double_validation_amount, v=>state.alerts.double_validation_amount=num(v));
+bind("al_keywords", ()=>state.alerts.keywords.join(", "), v=>{
+  state.alerts.keywords = v.split(",").map(x=>x.trim()).filter(Boolean);
+});
+
+/* =========================
+   Opérations
+   ========================= */
+function addOp(){
+  state.ops.push({
+    id: uid(),
+    label: "Opération",
+    objet:"",
+    adresse:"",
+    cal:"",
+    financement:"",
+    notaire:""
+  });
+  renderOps();
+}
+function renderOps(){
+  const box = document.getElementById("ops_list");
+  box.innerHTML = "";
+  state.ops.forEach((o, idx)=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="top">
+        <div>
+          <div><span class="badge">Opération ${idx+1}</span> <b>${escapeHtml(o.label||"")}</b></div>
+          <div class="small muted">Un bien = une opération (recommandé).</div>
+        </div>
+        <button class="danger" data-delop="${o.id}">Supprimer</button>
+      </div>
+      <div class="hr"></div>
+      <label>Intitulé (court)</label>
+      <input data-ok="label" data-oid="${o.id}" value="${escapeHtml(o.label)}" placeholder="Ex : Immeuble rue X" />
+      <label>Objet</label>
+      <textarea data-ok="objet" data-oid="${o.id}" placeholder="Acquisition, travaux, division, revente...">${escapeHtml(o.objet)}</textarea>
+      <div class="row">
+        <div>
+          <label>Adresse</label>
+          <input data-ok="adresse" data-oid="${o.id}" value="${escapeHtml(o.adresse)}" />
+        </div>
+        <div>
+          <label>Calendrier</label>
+          <input data-ok="cal" data-oid="${o.id}" value="${escapeHtml(o.cal)}" />
+        </div>
+      </div>
+      <label>Financement (résumé)</label>
+      <textarea data-ok="financement" data-oid="${o.id}">${escapeHtml(o.financement)}</textarea>
+      <label>Notaire / intermédiaires</label>
+      <textarea data-ok="notaire" data-oid="${o.id}">${escapeHtml(o.notaire)}</textarea>
+    `;
+    box.appendChild(div);
+  });
+
+  box.querySelectorAll("[data-delop]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      state.ops = state.ops.filter(x=>x.id!==btn.dataset.delop);
+      renderOps(); renderPreview();
+    });
+  });
+  box.querySelectorAll("[data-ok]").forEach(el=>{
+    el.addEventListener("input", ()=>{
+      const o = state.ops.find(x=>x.id===el.dataset.oid);
+      o[el.dataset.ok] = el.value;
+    });
+  });
+}
+document.getElementById("btn_add_op").addEventListener("click", ()=>{ addOp(); });
+document.getElementById("btn_clear_ops").addEventListener("click", ()=>{ state.ops=[]; renderOps(); renderPreview(); });
+
+/* =========================
+   Associés
+   ========================= */
+function addAssoc(){
+  state.associes.push({
+    id: uid(),
+    type:"pm",
+    nom:"",
+    forme:"",
+    siren:"",
+    adresse:"",
+    representant:"",
+    qualite:"",
+    basePouvoir:"",
+    droits:""
+  });
+  renderAssoc();
+}
+function renderAssoc(){
+  const box = document.getElementById("assoc_list");
+  box.innerHTML = "";
+  state.associes.forEach((a, idx)=>{
+    const div = document.createElement("div");
+    div.className="item";
+    div.innerHTML = `
+      <div class="top">
+        <div>
+          <div><span class="badge">Associé ${idx+1}</span> <span class="muted">(${a.type==="pp"?"PP":"PM"})</span></div>
+        </div>
+        <button class="danger" data-dela="${a.id}">Supprimer</button>
+      </div>
+      <div class="hr"></div>
+      <div class="row">
+        <div>
+          <label>Type</label>
+          <select data-ak="type" data-aid="${a.id}">
+            <option value="pp" ${a.type==="pp"?"selected":""}>Personne physique</option>
+            <option value="pm" ${a.type==="pm"?"selected":""}>Personne morale</option>
+          </select>
+        </div>
+        <div>
+          <label>Nom / Dénomination</label>
+          <input data-ak="nom" data-aid="${a.id}" value="${escapeHtml(a.nom)}" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Forme (PM)</label>
+          <input data-ak="forme" data-aid="${a.id}" value="${escapeHtml(a.forme)}" />
+        </div>
+        <div>
+          <label>SIREN (PM)</label>
+          <input data-ak="siren" data-aid="${a.id}" value="${escapeHtml(a.siren)}" />
+        </div>
+      </div>
+      <label>Adresse</label>
+      <input data-ak="adresse" data-aid="${a.id}" value="${escapeHtml(a.adresse)}" />
+      <div class="row">
+        <div>
+          <label>Représentant / Identité</label>
+          <input data-ak="representant" data-aid="${a.id}" value="${escapeHtml(a.representant)}" />
+        </div>
+        <div>
+          <label>Qualité</label>
+          <input data-ak="qualite" data-aid="${a.id}" value="${escapeHtml(a.qualite)}" />
+        </div>
+      </div>
+      <label>Base de pouvoir (PM)</label>
+      <input data-ak="basePouvoir" data-aid="${a.id}" value="${escapeHtml(a.basePouvoir)}" placeholder="Kbis/PV/délégation" />
+      <label>Droits / quote-part (%)</label>
+      <input data-ak="droits" data-aid="${a.id}" value="${escapeHtml(a.droits)}" placeholder="Ex : 50" />
+    `;
+    box.appendChild(div);
+  });
+
+  box.querySelectorAll("[data-dela]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      state.associes = state.associes.filter(x=>x.id!==btn.dataset.dela);
+      renderAssoc(); renderChecklist(); renderPreview();
+    });
+  });
+  box.querySelectorAll("[data-ak]").forEach(el=>{
+    el.addEventListener("input", ()=>{
+      const a = state.associes.find(x=>x.id===el.dataset.aid);
+      a[el.dataset.ak] = el.value;
+    });
+  });
+}
+document.getElementById("btn_add_assoc").addEventListener("click", ()=>addAssoc());
+document.getElementById("btn_clear_assoc").addEventListener("click", ()=>{ state.associes=[]; renderAssoc(); renderChecklist(); renderPreview(); });
+
+/* =========================
+   Clauses : import pack (Outil A)
+   ========================= */
+document.getElementById("btn_import_pack").addEventListener("click", ()=>document.getElementById("file_pack").click());
+document.getElementById("file_pack").addEventListener("change", async (e)=>{
+  const f = e.target.files?.[0];
+  if(!f) return;
+  const txt = await f.text();
+  const obj = JSON.parse(txt);
+  const ids = obj.recommended_clause_ids || [];
+  ids.forEach(id=>state.clauses_enabled_ids.add(id));
+  renderClauseStatus();
+  renderPreview();
+  e.target.value="";
+});
+
+function renderClauseStatus(){
+  const box = document.getElementById("clause_status");
+  const ids = Array.from(state.clauses_enabled_ids);
+  box.innerHTML = `
+    <div class="item">
+      <div class="top">
+        <div>
+          <div><span class="badge">Actives</span> <b>${ids.length} clause(s)</b></div>
+          <div class="small muted">IDs : ${escapeHtml(ids.join(", "))}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================
+   Checklist pièces
+   ========================= */
+function checklistTemplate(){
+  const hasPM = state.associes.some(a=>a.type==="pm");
+  return [
+    {k:"id_pp", title:"Associés PP : pièces d’identité", reco:true},
+    {k:"id_pm_kbis", title:"Associés PM : Kbis récent + statuts", reco:hasPM},
+    {k:"id_pm_powers", title:"Pouvoirs / signature : représentant légal / PV / délégation", reco:hasPM},
+    {k:"be", title:"Bénéficiaires effectifs : identification / documentation", reco:true},
+    {k:"funds", title:"Origine des fonds : justificatifs apports / CCA / virements", reco:true},
+    {k:"rib", title:"Compte bancaire dédié : RIB + modalités de signature", reco:true},
+    {k:"loan", title:"Financement : offre/contrat de prêt, garanties, échéancier", reco:false},
+    {k:"notaire", title:"Notaire : décompte acquisition + relevés de compte notaire + pièces de vente", reco:true},
+    {k:"travaux", title:"Travaux : devis/contrats + factures + attestations (si applicable)", reco:false},
+  ];
+}
+function renderChecklist(){
+  const box = document.getElementById("checklist_box");
+  const items = checklistTemplate();
+  box.innerHTML = items.map(it=>{
+    const ok = !!state.checklist.checks[it.k];
+    const note = state.checklist.notes[it.k] || "";
+    const badge = it.reco ? `<span class="pill warn">Recommandé</span>` : `<span class="pill">Optionnel</span>`;
+    return `
+      <div class="item">
+        <div class="top">
+          <div>
+            <b>${escapeHtml(it.title)}</b> ${badge}
+            <div class="small muted">Clé : ${it.k}</div>
+          </div>
+          <label style="margin:0;display:flex;align-items:center;gap:10px;color:#cfe0ff">
+            <input type="checkbox" data-ck="${it.k}" ${ok?"checked":""} style="width:18px;height:18px">
+            Obtenu
+          </label>
+        </div>
+        <label>Note / référence</label>
+        <input data-nk="${it.k}" value="${escapeHtml(note)}" placeholder="Ex : Kbis du … / PV du … / décompte notaire …" />
+      </div>
+    `;
+  }).join("");
+
+  box.querySelectorAll('input[type="checkbox"][data-ck]').forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      state.checklist.checks[cb.dataset.ck] = !!cb.checked;
+      renderPreview();
+    });
+  });
+  box.querySelectorAll("input[data-nk]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      state.checklist.notes[inp.dataset.nk] = inp.value;
+    });
+  });
+}
+document.getElementById("btn_seed_check").addEventListener("click", ()=>{
+  checklistTemplate().forEach(it=>{
+    if(state.checklist.checks[it.k]===undefined) state.checklist.checks[it.k]=false;
+    if(state.checklist.notes[it.k]===undefined) state.checklist.notes[it.k]="";
+  });
+  renderChecklist(); renderPreview();
+});
+document.getElementById("btn_refresh_check").addEventListener("click", ()=>{ renderChecklist(); renderPreview(); });
+
+document.getElementById("btn_csv_check").addEventListener("click", ()=>{
+  const items = checklistTemplate();
+  let csv = "cle;intitule;recommande;obtenu;note\n";
+  items.forEach(it=>{
+    csv += [
+      csvEscape(it.k),
+      csvEscape(it.title),
+      csvEscape(it.reco?"OUI":"NON"),
+      csvEscape(state.checklist.checks[it.k]?"OUI":"NON"),
+      csvEscape(state.checklist.notes[it.k]||"")
+    ].join(";") + "\n";
+  });
+  const name = ((state.d_ref||"SEP")+"_pieces.csv").replaceAll(/[\\/:*?"<>|]+/g,"_");
+  download(name, csv, "text/csv;charset=utf-8");
+});
+
+/* =========================
+   Flux (journal)
+   ========================= */
+function addFlux(){
+  // opération par défaut = 1ère
+  const opId = state.ops[0]?.id || "";
+  state.flux.push({
+    id: uid(),
+    date: new Date().toISOString().slice(0,10),
+    opId,
+    type: "depense", // depense/recette/apport/cca/notaire
+    montant: "",
+    tiers: "",
+    libelle: "",
+    piece: "oui", // oui/non
+    note: ""
+  });
+  renderFlux();
+}
+function renderFlux(){
+  const box = document.getElementById("flux_list");
+  box.innerHTML = "";
+
+  const opOptions = state.ops.map(o=>`<option value="${o.id}">${escapeHtml(o.label||"Opération")}</option>`).join("");
+  state.flux.forEach((f, idx)=>{
+    const div = document.createElement("div");
+    div.className="item";
+
+    const alerts = fluxAlerts(f);
+    const pill = alerts.level==="danger" ? "pill danger" : (alerts.level==="warn" ? "pill warn" : "pill ok");
+    const pillTxt = alerts.level==="danger" ? "Alerte forte" : (alerts.level==="warn" ? "Alerte" : "OK");
+
+    div.innerHTML = `
+      <div class="top">
+        <div>
+          <div><span class="badge">Flux ${idx+1}</span> <span class="${pill}">${pillTxt}</span></div>
+          <div class="small muted">${escapeHtml(alerts.reasons.join(" · ") || "Aucun indicateur")}</div>
+        </div>
+        <button class="danger" data-delf="${f.id}">Supprimer</button>
+      </div>
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <label>Date</label>
+          <input type="date" data-fk="date" data-fid="${f.id}" value="${escapeHtml(f.date)}" />
+        </div>
+        <div>
+          <label>Opération</label>
+          <select data-fk="opId" data-fid="${f.id}">
+            <option value="">(non affecté)</option>
+            ${opOptions}
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Type</label>
+          <select data-fk="type" data-fid="${f.id}">
+            <option value="depense" ${f.type==="depense"?"selected":""}>Dépense</option>
+            <option value="recette" ${f.type==="recette"?"selected":""}>Recette</option>
+            <option value="apport" ${f.type==="apport"?"selected":""}>Apport</option>
+            <option value="cca" ${f.type==="cca"?"selected":""}>Compte courant associé</option>
+            <option value="notaire" ${f.type==="notaire"?"selected":""}>Notaire</option>
+          </select>
+        </div>
+        <div>
+          <label>Montant (€)</label>
+          <input type="number" step="0.01" data-fk="montant" data-fid="${f.id}" value="${escapeHtml(f.montant)}" />
+        </div>
+      </div>
+
+      <label>Tiers</label>
+      <input data-fk="tiers" data-fid="${f.id}" value="${escapeHtml(f.tiers)}" placeholder="Banque / notaire / entreprise travaux / associé..." />
+
+      <label>Libellé</label>
+      <input data-fk="libelle" data-fid="${f.id}" value="${escapeHtml(f.libelle)}" placeholder="Ex : Facture travaux, appel de fonds, virement..." />
+
+      <div class="row">
+        <div>
+          <label>Pièce justificative ?</label>
+          <select data-fk="piece" data-fid="${f.id}">
+            <option value="oui" ${f.piece==="oui"?"selected":""}>Oui</option>
+            <option value="non" ${f.piece==="non"?"selected":""}>Non</option>
+          </select>
+        </div>
+        <div>
+          <label>Note (facultatif)</label>
+          <input data-fk="note" data-fid="${f.id}" value="${escapeHtml(f.note)}" />
+        </div>
+      </div>
+    `;
+    box.appendChild(div);
+
+    // select op default selection
+    const sel = div.querySelector('select[data-fk="opId"]');
+    if(sel) sel.value = f.opId || "";
+  });
+
+  box.querySelectorAll("[data-delf]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      state.flux = state.flux.filter(x=>x.id!==btn.dataset.delf);
+      renderFlux(); renderPreview();
+    });
+  });
+  box.querySelectorAll("[data-fk]").forEach(el=>{
+    el.addEventListener("input", ()=>{
+      const f = state.flux.find(x=>x.id===el.dataset.fid);
+      f[el.dataset.fk] = el.value;
+      // recalcul instant
+      renderFlux();
+      renderPreview();
+    });
+  });
+}
+document.getElementById("btn_add_flux").addEventListener("click", ()=>{ addFlux(); renderPreview(); });
+document.getElementById("btn_clear_flux").addEventListener("click", ()=>{ state.flux=[]; renderFlux(); renderPreview(); });
+
+document.getElementById("btn_csv_flux").addEventListener("click", ()=>{
+  let csv = "date;operation;type;montant;tiers;libelle;piece;note;alertes\n";
+  state.flux.forEach(f=>{
+    const op = state.ops.find(o=>o.id===f.opId);
+    const a = fluxAlerts(f);
+    csv += [
+      csvEscape(f.date),
+      csvEscape(op?.label || ""),
+      csvEscape(f.type),
+      csvEscape(f.montant),
+      csvEscape(f.tiers),
+      csvEscape(f.libelle),
+      csvEscape(f.piece),
+      csvEscape(f.note),
+      csvEscape(a.reasons.join(" | "))
+    ].join(";") + "\n";
+  });
+  const name = ((state.d_ref||"SEP")+"_flux.csv").replaceAll(/[\\/:*?"<>|]+/g,"_");
+  download(name, csv, "text/csv;charset=utf-8");
+});
+
+/* =========================
+   Alertes (calcul)
+   ========================= */
+function fluxAlerts(f){
+  const reasons = [];
+  const m = Math.abs(num(f.montant));
+  const kw = (state.alerts.keywords||[]).map(x=>x.toLowerCase());
+  const hay = (f.libelle+" "+f.tiers+" "+f.note).toLowerCase();
+
+  if(m && m >= num(state.alerts.amount)) reasons.push(`Montant ≥ ${state.alerts.amount}€`);
+  if(f.piece==="non") reasons.push("Sans pièce justificative");
+  if(state.gouv_double==="oui" && m && m >= num(state.alerts.double_validation_amount || 0)) reasons.push(`Double validation attendue (≥ ${state.alerts.double_validation_amount}€)`);
+  kw.forEach(k=>{ if(k && hay.includes(k)) reasons.push(`Mot-clé: ${k}`); });
+
+  let level = "ok";
+  if(reasons.some(r=>r.includes("Sans pièce"))) level = "danger";
+  if(reasons.length>=2) level = (level==="danger"?"danger":"warn");
+  if(reasons.length===1 && level!=="danger") level = "warn";
+  return {level, reasons};
+}
+
+function dossierAlertsSummary(){
+  const fluxNoDoc = state.flux.filter(f=>f.piece==="non").length;
+  const missingNotes = state.flux.filter(f=>!(f.note||"").trim()).length;
+  const total = state.flux.length || 0;
+  const missingPct = total ? (missingNotes*100/total) : 0;
+
+  const flags = [];
+  if(fluxNoDoc >= num(state.alerts.no_doc_count)) flags.push({level:"danger", text:`Flux sans pièce ≥ ${state.alerts.no_doc_count} (actuel : ${fluxNoDoc})`});
+  if(missingPct >= num(state.alerts.missing_notes_pct)) flags.push({level:"warn", text:`Notes manquantes ≥ ${state.alerts.missing_notes_pct}% (actuel : ${missingPct.toFixed(0)}%)`});
+
+  // gros flux / mots-clés
+  const strong = state.flux.map(f=>({f,a:fluxAlerts(f)})).filter(x=>x.a.level==="danger");
+  if(strong.length) flags.push({level:"danger", text:`${strong.length} flux à alerte forte (montant/pièce/mots-clés)`});
+
+  return {fluxNoDoc, missingPct, flags};
+}
+
+document.getElementById("btn_refresh_alerts").addEventListener("click", ()=>{
+  renderFlux();
+  renderPreview();
+});
+
+/* =========================
+   Contrat / annexes render
+   ========================= */
+function renderAssocList(){
+  if(state.associes.length===0) return `<p class="meta"><i>Aucun associé renseigné.</i></p>`;
+  return `<ol>${
+    state.associes.map(a=>`
+      <li>
+        <b>${escapeHtml(a.nom||"(à compléter)")}</b>
+        ${a.type==="pm" ? `— ${escapeHtml(a.forme||"")} (SIREN : ${escapeHtml(a.siren||"")})` : ""}
+        <br/><span class="meta">Adresse :</span> ${escapeHtml(a.adresse||"")}
+        <br/><span class="meta">Représentant :</span> ${escapeHtml(a.representant||"")} — <span class="meta">Qualité :</span> ${escapeHtml(a.qualite||"")}
+        ${a.type==="pm" ? `<br/><span class="meta">Base de pouvoir :</span> ${escapeHtml(a.basePouvoir||"")}` : ""}
+        <br/><span class="meta">Droits :</span> ${escapeHtml(a.droits||"")}%
+      </li>
+    `).join("")
+  }</ol>`;
+}
+
+function renderOpsSummary(){
+  if(state.ops.length===0) return `<p class="meta"><i>Aucune opération renseignée (mode mono-opération non paramétré).</i></p>`;
+  return `
+    <table>
+      <thead><tr><th>Opération</th><th>Adresse</th><th>Calendrier</th><th>Financement</th></tr></thead>
+      <tbody>
+        ${state.ops.map(o=>`
+          <tr>
+            <td><b>${escapeHtml(o.label||"")}</b><br/><span class="meta">${escapeHtml(o.objet||"")}</span></td>
+            <td>${escapeHtml(o.adresse||"")}</td>
+            <td>${escapeHtml(o.cal||"")}</td>
+            <td>${escapeHtml(o.financement||"")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderChecklistAnnexe(){
+  const items = checklistTemplate();
+  return `
+    <div class="sec">
+      <h4>Annexe — Check-list pièces</h4>
+      <ul>
+        ${items.map(it=>{
+          const ok = state.checklist.checks[it.k] ? "☑" : "☐";
+          const note = state.checklist.notes[it.k] ? ` — <span class="meta">${escapeHtml(state.checklist.notes[it.k])}</span>` : "";
+          return `<li>${ok} ${escapeHtml(it.title)}${note}</li>`;
+        }).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderFluxAnnexe(){
+  if(state.flux.length===0) return `<p class="meta"><i>Aucun flux saisi.</i></p>`;
+  return `
+    <div class="sec">
+      <h4>Annexe — Journal des flux (extrait)</h4>
+      <table>
+        <thead><tr><th>Date</th><th>Opération</th><th>Type</th><th>Montant</th><th>Tiers / Libellé</th><th>Pièce</th><th>Alertes</th></tr></thead>
+        <tbody>
+          ${state.flux.map(f=>{
+            const op = state.ops.find(o=>o.id===f.opId);
+            const a = fluxAlerts(f);
+            const pill = a.level==="danger" ? "pill danger" : (a.level==="warn" ? "pill warn" : "pill ok");
+            return `
+              <tr>
+                <td>${escapeHtml(formatDate(f.date))}</td>
+                <td>${escapeHtml(op?.label || "")}</td>
+                <td>${escapeHtml(f.type)}</td>
+                <td style="text-align:right">${escapeHtml(String(f.montant||""))}</td>
+                <td><b>${escapeHtml(f.tiers||"")}</b><br/><span class="meta">${escapeHtml(f.libelle||"")}</span></td>
+                <td>${f.piece==="oui"?"Oui":"Non"}</td>
+                <td><span class="${pill}">${escapeHtml(a.reasons.join(" · ") || "—")}</span></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAlertBlock(){
+  const s = dossierAlertsSummary();
+  const flags = s.flags.length ? s.flags : [{level:"ok", text:"Aucun indicateur significatif au regard des seuils."}];
+  const list = flags.map(f=>{
+    const cls = f.level==="danger" ? "pill danger" : (f.level==="warn" ? "pill warn" : "pill ok");
+    return `<li><span class="${cls}">${escapeHtml(f.text)}</span></li>`;
+  }).join("");
+  return `
+    <div class="sec">
+      <h4>Indicateurs & alertes (dossier)</h4>
+      <div class="meta">
+        Flux sans pièce : <b>${s.fluxNoDoc}</b> — Notes manquantes : <b>${s.missingPct.toFixed(0)}%</b><br/>
+        Seuils : montant ≥ ${escapeHtml(String(state.alerts.amount))}€ ; sans pièce ≥ ${escapeHtml(String(state.alerts.no_doc_count))} ; notes manquantes ≥ ${escapeHtml(String(state.alerts.missing_notes_pct))}% ; double validation ≥ ${escapeHtml(String(state.alerts.double_validation_amount))}€.
+      </div>
+      <ul>${list}</ul>
+    </div>
+  `;
+}
+
+function renderPreview(){
+  const title = state.sep_name?.trim() ? state.sep_name.trim() : "Société en participation – Marchand de biens";
+  const eff = formatDate(state.sep_date_effet);
+
+  // Répartition simple sur droits (si renseignés)
+  const resGlobal = 0; // volontaire : la V3 se concentre sur suivi; la V2 avait tableau complet
+  const sumPct = state.associes.reduce((s,a)=>s+num(a.droits),0);
+
+  document.getElementById("preview").innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    <div class="meta">
+      <b>Référence :</b> ${escapeHtml(state.d_ref||"—")}<br/>
+      <b>Date d’effet :</b> ${escapeHtml(eff||"—")} — <b>Durée :</b> ${escapeHtml(state.sep_duree||"—")}<br/>
+      <b>Siège :</b> ${escapeHtml(state.sep_siege||"—")} — <b>Confidentialité :</b> ${escapeHtml(state.sep_conf)}<br/>
+      <b>Traitement fiscal (paramétrage) :</b> ${escapeHtml(state.eco_fisc)}<br/>
+    </div>
+
+    <div class="sec">
+      <h4>Entre les soussignés</h4>
+      ${renderAssocList()}
+      <p class="meta"><b>Total droits :</b> ${escapeHtml(String(sumPct))}% (viser 100%).</p>
+    </div>
+
+    <div class="sec">
+      <h4>Opérations couvertes (multi-opérations)</h4>
+      ${renderOpsSummary()}
+    </div>
+
+    <div class="sec">
+      <h4>Gérance / gouvernance</h4>
+      <p><b>Gérant :</b> ${escapeHtml(state.gouv_gerant||"—")}</p>
+      <p><b>Pouvoirs :</b><br/>${escapeHtml(state.gouv_pouvoirs||"—").replaceAll("\n","<br/>")}</p>
+      <p><b>Décisions :</b> ${escapeHtml(state.gouv_maj||"—")}</p>
+      <p><b>Double validation :</b> ${escapeHtml(state.gouv_double)} ${state.gouv_double==="oui" ? `— seuil : ${escapeHtml(state.gouv_seuil||"—")}` : ""}</p>
+      <p class="meta"><b>Clauses actives (IDs) :</b> ${escapeHtml(Array.from(state.clauses_enabled_ids).join(", "))}</p>
+    </div>
+
+    ${renderAlertBlock()}
+
+    ${renderChecklistAnnexe()}
+
+    ${renderFluxAnnexe()}
+
+    <div class="sec">
+      <h4>Signatures</h4>
+      <p>Fait à ____________________, le ____________________</p>
+      <div class="grid2">
+        <div><p><b>Associé</b><br/>Nom / Qualité : ____________________<br/>Signature :</p></div>
+        <div><p><b>Cabinet / Gérant</b><br/>Nom / Qualité : ____________________<br/>Signature :</p></div>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================
+   Boutons export / import / PDF
+   ========================= */
+document.getElementById("btn_refresh").addEventListener("click", ()=>{ renderClauseStatus(); renderPreview(); });
+document.getElementById("btn_print").addEventListener("click", ()=>window.print());
+
+document.getElementById("btn_pdf").addEventListener("click", async ()=>{
+  renderPreview();
+  const node = document.getElementById("preview");
+  const canvas = await html2canvas(node, {scale: 2, useCORS: true});
+  const imgData = canvas.toDataURL("image/png");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p","mm","a4");
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW;
+  const imgH = canvas.height * imgW / canvas.width;
+
+  let y = 0;
+  let remaining = imgH;
+
+  while(remaining > 0){
+    pdf.addImage(imgData, "PNG", 0, y, imgW, imgH);
+    remaining -= pageH;
+    if(remaining > 0){
+      pdf.addPage();
+      y = -pageH * (pdf.getNumberOfPages()-1);
+    }
+  }
+  const fname = ((state.d_ref || state.sep_name || "SEP") + "_V3.pdf").replaceAll(/[\\/:*?"<>|]+/g,"_");
+  pdf.save(fname);
+});
+
+document.getElementById("btn_save").addEventListener("click", ()=>{
+  const copy = structuredClone(state);
+  // Serialize Set
+  copy.clauses_enabled_ids = Array.from(state.clauses_enabled_ids);
+  const name = ((state.d_ref||"SEP")+"_V3.json").replaceAll(/[\\/:*?"<>|]+/g,"_");
+  download(name, JSON.stringify(copy, null, 2), "application/json");
+});
+document.getElementById("btn_load").addEventListener("click", ()=>document.getElementById("file_load").click());
+document.getElementById("file_load").addEventListener("change", async (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const txt = await f.text();
+  const obj = JSON.parse(txt);
+
+  // restore set
+  obj.clauses_enabled_ids = new Set(obj.clauses_enabled_ids || []);
+  state = obj;
+
+  // rebind values to inputs
+  const setVal=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v ?? ""; };
+  setVal("d_ref", state.d_ref);
+  setVal("sep_name", state.sep_name);
+  setVal("sep_date_effet", state.sep_date_effet);
+  setVal("sep_duree", state.sep_duree);
+  setVal("sep_siege", state.sep_siege);
+  setVal("sep_conf", state.sep_conf);
+  setVal("eco_fisc", state.eco_fisc);
+  setVal("eco_compta", state.eco_compta);
+
+  setVal("gouv_gerant", state.gouv_gerant);
+  setVal("gouv_double", state.gouv_double);
+  setVal("gouv_seuil", state.gouv_seuil);
+  setVal("gouv_maj", state.gouv_maj);
+  setVal("gouv_pouvoirs", state.gouv_pouvoirs);
+
+  setVal("al_amount", state.alerts.amount);
+  setVal("al_missing_notes", state.alerts.missing_notes_pct);
+  setVal("al_no_doc", state.alerts.no_doc_count);
+  setVal("al_double", state.alerts.double_validation_amount);
+  setVal("al_keywords", (state.alerts.keywords||[]).join(", "));
+
+  renderOps();
+  renderAssoc();
+  renderChecklist();
+  renderFlux();
+  renderClauseStatus();
+  renderPreview();
+  e.target.value="";
+});
+
+document.getElementById("btn_refresh_alerts").addEventListener("click", ()=>{ renderFlux(); renderPreview(); });
+
+/* =========================
+   Init
+   ========================= */
+(function init(){
+  // dates
+  const iso = new Date().toISOString().slice(0,10);
+  if(!state.sep_date_effet){ state.sep_date_effet = iso; document.getElementById("sep_date_effet").value = iso; }
+
+  // defaults alert inputs
+  document.getElementById("al_amount").value = state.alerts.amount;
+  document.getElementById("al_missing_notes").value = state.alerts.missing_notes_pct;
+  document.getElementById("al_no_doc").value = state.alerts.no_doc_count;
+  document.getElementById("al_double").value = state.alerts.double_validation_amount;
+  document.getElementById("al_keywords").value = state.alerts.keywords.join(", ");
+
+  renderOps();
+  renderAssoc();
+  renderChecklist();
+  renderFlux();
+  renderClauseStatus();
+  renderPreview();
+})();
+</script>
+</body>
+</html>
